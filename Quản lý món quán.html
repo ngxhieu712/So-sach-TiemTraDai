@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quản lý món quán</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--card:#fff;--line:#e3e0d8;--mut:#70706b;--pri:#c2410c;--ok:#15803d;--okbg:#dcfce7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#151514;--fg:#f1f0ec;--card:#20201e;--line:#34342f;--mut:#a3a39b;--pri:#fb923c;--ok:#4ade80;--okbg:#14391f}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.35 "Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:84px}
+main{max-width:640px;margin:0 auto;padding:12px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav button{flex:1;padding:14px 4px;border:0;background:none;color:var(--mut);font:600 16px inherit;font-family:inherit}
+nav button.on{color:var(--pri);box-shadow:inset 0 3px 0 var(--pri)}
+.b{display:inline-block;background:var(--ok);color:#fff;border-radius:10px;padding:0 7px;font-size:13px;margin-left:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+h2{font-size:18px;margin:4px 0 10px}
+.mut{color:var(--mut);font-size:14px}
+.big{font-size:38px;font-weight:700;line-height:1;min-width:48px;text-align:center}
+button.a,.st button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;font:600 18px inherit;font-family:inherit;min-width:44px;height:44px;padding:0 12px}
+button.p{background:var(--pri);color:#fff;border-color:var(--pri)}
+button.g{background:var(--ok);color:#fff;border-color:var(--ok)}
+input{font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);width:100%}
+.st{display:flex;align-items:center;gap:6px}.st span{min-width:26px;text-align:center;font-weight:700}
+.rdy{background:var(--okbg);border-radius:8px;padding:8px 10px;margin-top:6px}
+.empty{color:var(--mut);text-align:center;padding:30px 10px}
+</style></head><body>
+<main id="app"></main>
+<nav><button id="t0" onclick="tab(0)">Nhập đơn</button><button id="t1" onclick="tab(1)">Bếp</button><button id="t2" onclick="tab(2)">Đơn</button></nav>
+<script>
+var S={menu:["Trứng","Ngô","Khoai","Cá Bò","Mía","Khoai nướng phô mai","Sườn","Thịt nướng","Chân gà","Cánh gà"],orders:[],next:1},T=0,D={},K={},L="",X={},LAST=null;
+try{var raw=localStorage.getItem("quan");if(raw)S=JSON.parse(raw)}catch(e){}
+function save(){try{localStorage.setItem("quan",JSON.stringify(S))}catch(e){}}
+function lab(o){return o.l||"Đơn "+o.n}
+function rem(o,i){return(o.q[i]||0)-(o.d[i]||0)}
+function rdy(o,i){return(o.d[i]||0)-(o.v[i]||0)}
+function open(o){return Object.keys(o.q).some(function(i){return(o.q[i]-(o.v[i]||0))>0})}
+function pend(i){return S.orders.reduce(function(s,o){return s+Math.max(0,rem(o,i))},0)}
+function tab(n){T=n;draw()}
+function tg(m){var i=S.menu[m];X[i]=!X[i];draw()}
+function adj(m,d){var q=(D[S.menu[m]]||0)+d;if(q<0)q=0;D[S.menu[m]]=q;draw()}
+function setL(v){L=v}
+function create(){var q={};for(var k in D)if(D[k]>0)q[k]=D[k];if(!Object.keys(q).length)return;
+S.orders.push({n:S.next++,l:L,q:q,d:{},v:{}});D={};L="";save();draw()}
+function kn(m,d){var i=S.menu[m];K[i]=Math.max(1,Math.min(pend(i),(K[i]||1)+d));draw()}
+function finish(m){var i=S.menu[m],n=Math.min(K[i]||1,pend(i)),k=n,al=[];
+S.orders.forEach(function(o){if(n>0&&rem(o,i)>0){var t=Math.min(n,rem(o,i));o.d[i]=(o.d[i]||0)+t;o.v[i]=o.d[i];n-=t;al.push(lab(o)+(t>1?"×"+t:""));if(!open(o))o.f=Date.now()}});LAST=k>0?{i:i,k:k,al:al}:null;K[i]=1;prune();save();draw()}
+function prune(){var dn=S.orders.filter(function(o){return!open(o)}).sort(function(a,b){return(b.f||0)-(a.f||0)||b.n-a.n}).slice(3);S.orders=S.orders.filter(function(o){return dn.indexOf(o)<0})}
+function serve(id,m){var i=S.menu[m];S.orders.forEach(function(o){if(o.n==id){o.v[i]=o.d[i]||0;if(!open(o))o.f=Date.now()}});prune();save();draw()}
+function cancel(id){if(confirm("Hủy đơn này?")){S.orders=S.orders.filter(function(o){return o.n!=id});save();draw()}}
+function addItem(){var v=document.getElementById("ni").value.trim();if(v&&S.menu.indexOf(v)<0){S.menu.push(v);save();draw()}}
+function delItem(m){if(confirm("Xóa món "+S.menu[m]+" khỏi thực đơn?")){S.menu.splice(m,1);save();draw()}}
+function doneAll(){if(confirm("Xóa các đơn đã mang đủ?")){S.orders=S.orders.filter(open);save();draw()}}
+function draw(){
+var h="",live=S.orders.filter(open),nready=0;
+S.orders.forEach(function(o){S.menu.forEach(function(i){if(rdy(o,i)>0)nready++})});
+[0,1,2].forEach(function(n){document.getElementById("t"+n).className=T==n?"on":""});
+document.getElementById("t2").innerHTML="Đơn";
+if(T==0){
+h+='<h2>Đơn mới</h2><div class="card"><input placeholder="Bàn / tên khách (không bắt buộc)" value="'+L.replace(/"/g,"&quot;")+'" oninput="setL(this.value)"></div>';
+S.menu.forEach(function(it,m){var q=D[it]||0;h+='<div class="card row"><b>'+it+'</b><div class="st"><button onclick="adj('+m+',-1)">−</button><span>'+q+'</span><button onclick="adj('+m+',1)">+</button></div></div>'});
+h+='<button class="a p" style="width:100%" onclick="create()">Tạo đơn</button>';
+h+='<h2 style="margin-top:24px">Thực đơn</h2><div class="card">';
+S.menu.forEach(function(it,m){h+='<div class="row" style="margin-bottom:6px"><span>'+it+'</span><button class="a" onclick="delItem('+m+')">×</button></div>'});
+h+='<div class="row"><input id="ni" placeholder="Thêm món mới"><button class="a p" onclick="addItem()">Thêm</button></div></div>';
+}
+if(T==1){
+if(LAST)h+='<div class="rdy" style="margin-bottom:10px"><b>Vừa xong '+LAST.k+' '+LAST.i+', mang ra:</b> '+LAST.al.join(', ')+' <button class="a" style="height:30px;font-size:14px;margin-left:6px" onclick="LAST=null;draw()">Ẩn</button></div>';
+h+='<h2>Cần làm</h2>';var any=false;
+S.menu.forEach(function(it,m){var p=pend(it);if(!p)return;any=true;var k=Math.min(K[it]||1,p);K[it]=k;
+var who=S.orders.filter(function(o){return rem(o,it)>0}).map(function(o){return lab(o)+(rem(o,it)>1?"×"+rem(o,it):"")}).join(", ");
+var dt="";if(X[it])dt='<div style="margin-top:8px">'+S.orders.filter(function(o){return(o.q[it]||0)-(o.v[it]||0)>0}).map(function(o){return'<div class="row" style="padding:8px 0;border-top:1px solid var(--line)"><b>'+lab(o)+'</b><span>'+(rem(o,it)>0?'x'+rem(o,it)+(o.q[it]>rem(o,it)?' / '+o.q[it]:''):'đã xong, chờ mang')+'</span></div>'}).join("")+'</div>';
+h+='<div class="card"><div class="row" onclick="tg('+m+')" style="cursor:pointer"><div><b>'+it+'</b><div class="mut">'+(X[it]?'Bấm để thu gọn':'Bấm để xem bàn · '+who)+'</div></div><div class="big">'+p+'</div></div>'+dt+
+'<div class="row" style="margin-top:10px"><div class="st"><button onclick="kn('+m+',-1)">−</button><span>'+k+'</span><button onclick="kn('+m+',1)">+</button></div><button class="a g" onclick="finish('+m+')">Xong '+k+' '+it+'</button></div></div>'});
+if(!any)h+='<div class="empty">Chưa có món nào cần làm.</div>';
+}
+if(T==2){
+h+='<h2>Các đơn đang chờ</h2>';
+var list=live.slice().sort(function(a,b){var ra=S.menu.some(function(i){return rdy(a,i)>0}),rb=S.menu.some(function(i){return rdy(b,i)>0});return(rb-ra)||(a.n-b.n)});
+list.forEach(function(o){h+='<div class="card"><div class="row"><b>'+lab(o)+'</b><button class="a" style="height:32px;font-size:14px" onclick="cancel('+o.n+')">Hủy</button></div>';
+S.menu.forEach(function(it,m){if(rdy(o,it)>0)h+='<div class="rdy row"><span><b>Mang '+rdy(o,it)+' '+it+'</b></span><button class="a g" onclick="serve('+o.n+','+m+')">Đã mang</button></div>';
+if(rem(o,it)>0)h+='<div class="mut" style="margin-top:6px">Đang chờ: '+rem(o,it)+' '+it+'</div>'});
+var sv=Object.keys(o.q).filter(function(i){return(o.v[i]||0)>0}).map(function(i){return o.v[i]+" "+i}).join(", ");
+if(sv)h+='<div class="mut" style="margin-top:6px">Đã mang: '+sv+'</div>';h+='</div>'});
+if(!list.length)h+='<div class="empty">Không có đơn nào đang chờ.</div>';
+var fin=S.orders.filter(function(o){return!open(o)}).sort(function(a,b){return(b.f||0)-(a.f||0)||b.n-a.n});if(fin.length){h+='<h2 style="margin-top:20px">Đã xong gần nhất</h2>';fin.forEach(function(o){h+='<div class="card mut"><b>'+lab(o)+'</b>: '+Object.keys(o.q).map(function(i){return o.q[i]+' '+i}).join(', ')+'</div>'})}
+}
+document.getElementById("app").innerHTML=h}
+S.orders.forEach(function(o){for(var i in o.d)o.v[i]=o.d[i]});prune();draw();
+</script></body></html>
